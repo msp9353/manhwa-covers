@@ -1,21 +1,15 @@
-name: Replace Cover
+name: Replace Cover Images
 
 permissions:
-  contents: write
+  contents: write  # allows committing to repo
 
 on:
-  workflow_dispatch:
-    inputs:
-      filename:
-        description: 'The filename to replace (e.g., MyManga.jpg)'
-        required: true
-      new_url:
-        description: 'The new image URL'
-        required: true
+  workflow_dispatch:  # manual trigger
 
 jobs:
   replace:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -28,14 +22,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Replace cover image
-        run: |
-          python replace_cover.py "${{ github.event.inputs.filename }}" "${{ github.event.inputs.new_url }}"
+      - name: Run replace_cover.py
+        run: python replace_cover.py
 
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add images covers.json
-          git diff --cached --quiet || git commit -m "Replace cover ${{ github.event.inputs.filename }}"
+          git add images docs/covers.json replace_requests.json
+          git diff --cached --quiet || git commit -m "Applied replacement requests"
           git push
