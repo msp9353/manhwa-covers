@@ -82,6 +82,14 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // Clear all requests from localStorage
+      localStorage.removeItem('replace_requests');
+
+      // Remove red border from all images
+      document.querySelectorAll('.card img.pending').forEach(img => {
+        img.classList.remove('pending');
+      });
     }
 
     // Set up download button
