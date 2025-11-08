@@ -14,21 +14,19 @@
 </head>
 <body>
   <h1>Manhwa Covers</h1>
-  <p>Click an image if it is wrong to submit a replacement URL.</p>
+  <p>Click an image if it is wrong to submit a replacement URL. Title will be copied automatically.</p>
   <button id="downloadBtn">Download Replacement Requests</button>
   <div class="grid" id="covers">
     <!-- Covers will be loaded here -->
   </div>
 
   <script>
-    // Load the covers
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
         const covers = await resp.json();
         const container = document.getElementById('covers');
 
-        // Load existing replacement requests from localStorage
         const existingRequests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
 
         covers.forEach(item => {
@@ -36,29 +34,33 @@
           div.className = 'card';
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
 
-          // Mark if there is already a replacement request
           if (existingRequests.some(req => req.title === item.title)) {
             div.querySelector('img').classList.add('pending');
           }
 
           container.appendChild(div);
 
-          // Click to submit a replacement URL
-          div.addEventListener('click', () => {
+          div.addEventListener('click', async () => {
+            // Copy title to clipboard
+            try {
+              await navigator.clipboard.writeText(item.title);
+              console.log(`Title "${item.title}" copied to clipboard`);
+            } catch (err) {
+              console.error('Failed to copy title:', err);
+            }
+
+            // Prompt for new URL
             const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
             if (newUrl) {
               let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
-
-              // Check if a request already exists for this title
               const existingIndex = requests.findIndex(req => req.title === item.title);
               if (existingIndex >= 0) {
-                requests[existingIndex].newUrl = newUrl; // Update existing
+                requests[existingIndex].newUrl = newUrl;
               } else {
-                requests.push({ title: item.title, newUrl }); // Add new
+                requests.push({ title: item.title, newUrl });
               }
-
               localStorage.setItem('replace_requests', JSON.stringify(requests));
-              div.querySelector('img').classList.add('pending'); // mark visually
+              div.querySelector('img').classList.add('pending');
               alert('Replacement request saved! You can now download it.');
             }
           });
@@ -70,7 +72,6 @@
       }
     }
 
-    // Download the JSON file
     function downloadRequests() {
       const requests = localStorage.getItem('replace_requests') || '[]';
       const blob = new Blob([requests], { type: 'application/json' });
@@ -83,19 +84,15 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Clear all requests from localStorage
+      // Clear all requests and remove red border
       localStorage.removeItem('replace_requests');
-
-      // Remove red border from all images
       document.querySelectorAll('.card img.pending').forEach(img => {
         img.classList.remove('pending');
       });
     }
 
-    // Set up download button
     document.getElementById('downloadBtn').addEventListener('click', downloadRequests);
 
-    // Initialize
     loadCovers();
   </script>
 </body>
