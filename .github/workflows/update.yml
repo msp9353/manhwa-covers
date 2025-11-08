@@ -1,31 +1,40 @@
 name: Update Covers
 
+# Give the action permission to push changes
+permissions:
+  contents: write
+
+# Only allow manual trigger
 on:
-  workflow_dispatch: # Only run manually
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo with credentials
+      # Checkout the repo so we can add images
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true  # <-- allows push with GITHUB_TOKEN
 
+      # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # Install Python dependencies
       - name: Install dependencies
         run: pip install requests
 
+      # Run the script to download images
       - name: Run update_covers.py
         run: python update_covers.py
 
-      - name: Commit and push if changed
+      # Commit and push new images if there are changes
+      - name: Commit and push new images
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add images
-          git diff --cached --quiet || git commit -m "Update cover images" && git push
+          git diff --cached --quiet || git commit -m "Update cover images"
+          git push
