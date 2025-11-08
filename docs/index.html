@@ -8,25 +8,18 @@
     .grid { display: flex; flex-wrap: wrap; gap: 20px; }
     .card { text-align: center; width: 180px; cursor: pointer; }
     .card img { width: 180px; height: 240px; object-fit: cover; }
-    #downloadBtn { margin-bottom: 20px; padding: 10px 20px; font-size: 16px; }
+    #downloadBtn { margin-bottom: 20px; padding: 10px 15px; font-size: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
   <h1>Manhwa Covers</h1>
-  <p>Click an image if it is wrong to submit a replacement URL. Then click "Download JSON" to save your requests.</p>
-  <button id="downloadBtn">Download JSON</button>
+  <p>Click an image if it is wrong to submit a replacement URL.</p>
+  <button id="downloadBtn">Download Replacement Requests</button>
   <div class="grid" id="covers">
     <!-- Covers will be loaded here -->
   </div>
 
   <script>
-    const replaceRequestsKey = 'replace_requests';
-
-    // Initialize localStorage if not already
-    if (!localStorage.getItem(replaceRequestsKey)) {
-      localStorage.setItem(replaceRequestsKey, JSON.stringify([]));
-    }
-
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
@@ -39,13 +32,21 @@
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
           container.appendChild(div);
 
-          div.addEventListener('click', () => {
+          div.addEventListener('click', async () => {
             const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
             if (newUrl) {
-              let requests = JSON.parse(localStorage.getItem(replaceRequestsKey));
-              requests.push({ title: item.title, newUrl });
-              localStorage.setItem(replaceRequestsKey, JSON.stringify(requests));
-              alert(`Replacement request saved for "${item.title}".`);
+              let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
+
+              // Check for duplicates and replace if exists
+              const index = requests.findIndex(r => r.title === item.title);
+              if (index >= 0) {
+                requests[index].newUrl = newUrl;
+              } else {
+                requests.push({ title: item.title, newUrl });
+              }
+
+              localStorage.setItem('replace_requests', JSON.stringify(requests));
+              alert('Replacement request saved. Click "Download Replacement Requests" to get JSON.');
             }
           });
         });
@@ -56,13 +57,13 @@
       }
     }
 
-    // Download button handler
     document.getElementById('downloadBtn').addEventListener('click', () => {
-      const requests = JSON.parse(localStorage.getItem(replaceRequestsKey));
+      let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
       if (requests.length === 0) {
         alert('No replacement requests to download.');
         return;
       }
+
       const blob = new Blob([JSON.stringify(requests, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -72,6 +73,10 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // Clear requests after download
+      localStorage.setItem('replace_requests', '[]');
+      alert('Replacement requests downloaded and reset.');
     });
 
     loadCovers();
