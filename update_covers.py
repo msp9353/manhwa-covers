@@ -2,19 +2,20 @@ import os
 import csv
 import requests
 import time
+import json
 from urllib.parse import quote
 
 # === CONFIG ===
 SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 IMAGES_DIR = "images"
-OUTPUT_FILE = "docs/covers.txt"  # New file for HTML
+OUTPUT_JSON = "docs/covers.json"
 DELAY_SECONDS = 0.4  # wait between requests to avoid rate limiting
 MAX_RETRIES = 3      # retry failed requests this many times
 
 # === SETUP ===
 os.makedirs(IMAGES_DIR, exist_ok=True)
-os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+os.makedirs("docs", exist_ok=True)  # ensure docs folder exists
 
 def sanitize_filename(name):
     invalid = '<>:"/\\|?*'
@@ -36,12 +37,12 @@ def get_titles_from_sheet():
 def get_cover_url(title):
     query = quote(title)
     url = f"https://api.jikan.moe/v4/manga?q={query}&limit=1"
-    
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             r = requests.get(url, timeout=10)
             if r.status_code != 200:
-                print(f"❌ Attempt {attempt}: Failed to fetch Jikan data for {title} (status {r.status_code})")
+                print(f"❌ Attempt {attempt}: Failed for {title} (status {r.status_code})")
                 time.sleep(DELAY_SECONDS * attempt)
                 continue
 
@@ -55,7 +56,7 @@ def get_cover_url(title):
         except requests.RequestException as e:
             print(f"❌ Attempt {attempt}: Exception for {title}: {e}")
             time.sleep(DELAY_SECONDS * attempt)
-    
+
     return None  # failed all retries
 
 def download_image(title, image_url):
@@ -63,19 +64,19 @@ def download_image(title, image_url):
     filepath = os.path.join(IMAGES_DIR, filename)
     if os.path.exists(filepath):
         print(f"✅ Skipped existing: {filename}")
-        return filename  # return existing filename
+        return filepath
     img_data = requests.get(image_url).content
     with open(filepath, "wb") as f:
         f.write(img_data)
     print(f"⬇️  Saved: {filename}")
-    return filename
+    return filepath
 
 def main():
     print("Fetching titles from Google Sheet...")
     titles = get_titles_from_sheet()
     print(f"Found {len(titles)} titles.")
 
-    cover_lines = []
+    covers_list = []
 
     for title in titles:
         filename = sanitize_filename(title) + ".jpg"
@@ -85,19 +86,22 @@ def main():
         else:
             cover_url = get_cover_url(title)
             if cover_url:
-                filename = download_image(title, cover_url)
+                filepath = download_image(title, cover_url)
             else:
-                continue  # skip if no cover
+                print(f"⚠️ Skipping {title}, no image found")
+                continue
+            time.sleep(DELAY_SECONDS)
 
-        # Add title|image path line
-        cover_lines.append(f"{title}|images/{filename}")
-        time.sleep(DELAY_SECONDS)  # ensure we don't exceed rate limits
+        # Add to JSON list (relative path for GitHub Pages)
+        covers_list.append({
+            "title": title,
+            "path": f"images/{filename}"
+        })
 
-    # Write covers.txt for HTML
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(cover_lines))
-
-    print(f"📄 Wrote {len(cover_lines)} lines to {OUTPUT_FILE}")
+    # Write JSON file
+    with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+        json.dump(covers_list, f, ensure_ascii=False, indent=2)
+    print(f"✅ Written JSON to {OUTPUT_JSON}")
 
 if __name__ == "__main__":
     main()
