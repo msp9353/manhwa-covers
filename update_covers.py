@@ -8,11 +8,13 @@ from urllib.parse import quote
 SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 IMAGES_DIR = "images"
-DELAY_SECONDS = 0.4  # wait 0.5s between requests to avoid rate limiting
+OUTPUT_FILE = "docs/covers.txt"  # New file for HTML
+DELAY_SECONDS = 0.4  # wait between requests to avoid rate limiting
 MAX_RETRIES = 3      # retry failed requests this many times
 
 # === SETUP ===
 os.makedirs(IMAGES_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
 def sanitize_filename(name):
     invalid = '<>:"/\\|?*'
@@ -61,26 +63,41 @@ def download_image(title, image_url):
     filepath = os.path.join(IMAGES_DIR, filename)
     if os.path.exists(filepath):
         print(f"✅ Skipped existing: {filename}")
-        return
+        return filename  # return existing filename
     img_data = requests.get(image_url).content
     with open(filepath, "wb") as f:
         f.write(img_data)
     print(f"⬇️  Saved: {filename}")
+    return filename
 
 def main():
     print("Fetching titles from Google Sheet...")
     titles = get_titles_from_sheet()
     print(f"Found {len(titles)} titles.")
+
+    cover_lines = []
+
     for title in titles:
         filename = sanitize_filename(title) + ".jpg"
         filepath = os.path.join(IMAGES_DIR, filename)
         if os.path.exists(filepath):
             print(f"✅ Already exists: {title}")
-            continue
-        cover_url = get_cover_url(title)
-        if cover_url:
-            download_image(title, cover_url)
+        else:
+            cover_url = get_cover_url(title)
+            if cover_url:
+                filename = download_image(title, cover_url)
+            else:
+                continue  # skip if no cover
+
+        # Add title|image path line
+        cover_lines.append(f"{title}|images/{filename}")
         time.sleep(DELAY_SECONDS)  # ensure we don't exceed rate limits
+
+    # Write covers.txt for HTML
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(cover_lines))
+
+    print(f"📄 Wrote {len(cover_lines)} lines to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
