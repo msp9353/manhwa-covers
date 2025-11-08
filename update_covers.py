@@ -4,7 +4,7 @@ import requests
 from urllib.parse import quote
 
 # === CONFIG ===
-SHEET_ID = "YOUR_SHEET_ID_HERE"
+SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 IMAGES_DIR = "images"
 
