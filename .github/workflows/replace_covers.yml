@@ -1,14 +1,14 @@
-name: Replace Cover Images
+name: Replace Covers
 
 on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
+  push:
+    paths:
+      - 'replace_requests.json'  # triggers only when this file changes
 
 jobs:
   replace:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -16,22 +16,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: pip install requests
 
       - name: Run replace_cover.py
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
         run: python replace_cover.py
 
       - name: Commit and push changes
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add images covers.json replace_requests.json
-          git diff --cached --quiet || git commit -m "Apply cover replacements"
-          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git HEAD:main
+          git add images
+          git diff --cached --quiet || git commit -m "Replace covers from replace_requests.json"
+          git push
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}  # your token for pushing
