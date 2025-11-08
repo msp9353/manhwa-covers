@@ -23,16 +23,11 @@
         const covers = await resp.json();
 
         const container = document.getElementById('covers');
-        const baseUrl = 'https://msp9353.github.io/manhwa-covers/';
 
         covers.forEach(item => {
           const div = document.createElement('div');
           div.className = 'card';
-          
-          // Encode URI to handle spaces and special characters
-          const imageUrl = baseUrl + encodeURI(item.path);
-          
-          div.innerHTML = `<img src="${imageUrl}" alt="${item.title}"><br>${item.title}`;
+          div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
           container.appendChild(div);
         });
       } catch (err) {
