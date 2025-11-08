@@ -1,39 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Manhwa Covers</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  .grid { display: flex; flex-wrap: wrap; gap: 20px; }
-  .card { text-align: center; width: 180px; }
-  .card img { width: 180px; height: 120px; object-fit: cover; }
-</style>
-</head>
-<body>
-<h1>Manhwa Covers</h1>
-<div class="grid" id="covers">
-  <!-- Covers will be loaded here -->
-</div>
-
 <script>
+function sanitizeFilename(name) {
+  // Same sanitization as your Python script
+  const invalid = /[<>:"\/\\|?*]/g;
+  return name.replace(invalid, '').trim();
+}
+
 async function loadCovers() {
-  // Fetch the list of files from the images folder using the GitHub API
-  const repoOwner = "YOUR_USERNAME";
-  const repoName = "YOUR_REPO";
+  const repoOwner = "msp9353";
+  const repoName = "manhwa-covers";
   const folderPath = "images";
-  const apiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`;
+  const imagesApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`;
 
-  const response = await fetch(apiUrl);
-  const files = await response.json();
+  // 1. Fetch titles from the Google Sheet
+  const SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8";
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+  const sheetResp = await fetch(csvUrl);
+  const csvText = await sheetResp.text();
+  const titles = csvText
+    .split("\n")
+    .map(row => row.split(",")[0].trim())
+    .filter(title => title && title.toLowerCase() !== "title");
 
-  const container = document.getElementById("covers");
+  // 2. Fetch image files from the repo
+  const imagesResp = await fetch(imagesApiUrl);
+  const files = await imagesResp.json();
 
+  // Map sanitized filenames (without .jpg) to their download URLs
+  const imageMap = {};
   files.forEach(file => {
     if(file.type === "file" && file.download_url.endsWith(".jpg")) {
+      const name = sanitizeFilename(file.name.replace(".jpg",""));
+      imageMap[name] = file.download_url;
+    }
+  });
+
+  // 3. Display images in the same order as the sheet
+  const container = document.getElementById("covers");
+  titles.forEach(title => {
+    const sanitized = sanitizeFilename(title);
+    if(imageMap[sanitized]) {
       const div = document.createElement("div");
       div.className = "card";
-      div.innerHTML = `<img src="${file.download_url}" alt="${file.name}"><br>${file.name.replace(".jpg","")}`;
+      div.innerHTML = `<img src="${imageMap[sanitized]}" alt="${title}"><br>${title}`;
       container.appendChild(div);
     }
   });
@@ -41,5 +49,3 @@ async function loadCovers() {
 
 loadCovers();
 </script>
-</body>
-</html>
