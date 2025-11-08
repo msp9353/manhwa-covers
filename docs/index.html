@@ -8,14 +8,25 @@
     .grid { display: flex; flex-wrap: wrap; gap: 20px; }
     .card { text-align: center; width: 180px; cursor: pointer; }
     .card img { width: 180px; height: 240px; object-fit: cover; }
+    #downloadBtn { margin-bottom: 20px; padding: 10px 20px; font-size: 16px; }
   </style>
 </head>
 <body>
   <h1>Manhwa Covers</h1>
-  <p>Click an image if it is wrong to submit a replacement URL.</p>
-  <div class="grid" id="covers"></div>
+  <p>Click an image if it is wrong to submit a replacement URL. Then click "Download JSON" to save your requests.</p>
+  <button id="downloadBtn">Download JSON</button>
+  <div class="grid" id="covers">
+    <!-- Covers will be loaded here -->
+  </div>
 
   <script>
+    const replaceRequestsKey = 'replace_requests';
+
+    // Initialize localStorage if not already
+    if (!localStorage.getItem(replaceRequestsKey)) {
+      localStorage.setItem(replaceRequestsKey, JSON.stringify([]));
+    }
+
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
@@ -28,26 +39,40 @@
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
           container.appendChild(div);
 
-          div.addEventListener('click', async () => {
+          div.addEventListener('click', () => {
             const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
             if (newUrl) {
-              // Fetch existing requests
-              const reqResp = await fetch('replace_requests.json').catch(()=>({json: async ()=>[]}));
-              const requests = await (reqResp.json ? reqResp.json() : []);
-              requests.push({ title: item.title, url: newUrl });
-
-              // Save requests to GitHub via workflow trigger
-              alert('Replacement request saved. The workflow will update the image automatically.');
-              // This triggers the workflow manually via GitHub Actions (workflow_dispatch)
+              let requests = JSON.parse(localStorage.getItem(replaceRequestsKey));
+              requests.push({ title: item.title, newUrl });
+              localStorage.setItem(replaceRequestsKey, JSON.stringify(requests));
+              alert(`Replacement request saved for "${item.title}".`);
             }
           });
         });
       } catch (err) {
         console.error('Failed to load covers:', err);
-        document.getElementById('covers').innerHTML =
-          '<p style="color:red;">Failed to load covers.</p>';
+        const container = document.getElementById('covers');
+        container.innerHTML = '<p style="color:red;">Failed to load covers.</p>';
       }
     }
+
+    // Download button handler
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const requests = JSON.parse(localStorage.getItem(replaceRequestsKey));
+      if (requests.length === 0) {
+        alert('No replacement requests to download.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(requests, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'replace_requests.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
 
     loadCovers();
   </script>
