@@ -1,11 +1,7 @@
 name: Update Covers
 
 on:
-  schedule:
-    - cron: "0 6 * * *" # Runs every day at 6 AM UTC
-  workflow_dispatch: # Allow manual trigger
-  push: # Optional: also run on push
-    branches: [ main ]
+  workflow_dispatch: # Only allows manual trigger
 
 jobs:
   update:
