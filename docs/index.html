@@ -1,59 +1,43 @@
-<script>
-function sanitizeFilename(name) {
-  const invalid = /[<>:"\/\\|?*]/g;
-  return name.replace(invalid, '').trim();
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manhwa Covers</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 20px; }
+    .card { text-align: center; width: 180px; }
+    .card img { width: 180px; height: 240px; object-fit: cover; }
+  </style>
+</head>
+<body>
+  <h1>Manhwa Covers</h1>
+  <div class="grid" id="covers">
+    <!-- Covers will be loaded here -->
+  </div>
 
-async function loadCovers() {
-  try {
-    const repoOwner = "msp9353";
-    const repoName = "manhwa-covers";
-    const folderPath = "images";
-    const imagesApiUrl = `https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`;
+  <script>
+    async function loadCovers() {
+      try {
+        const resp = await fetch('covers.json');
+        const covers = await resp.json();
 
-    // 1. Fetch titles from the Google Sheet
-    const SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8";
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
-    const sheetResp = await fetch(csvUrl);
-    if (!sheetResp.ok) throw new Error(`Failed to fetch sheet: ${sheetResp.status}`);
-    const csvText = await sheetResp.text();
-    const titles = csvText
-      .split("\n")
-      .map(row => row.split(",")[0].trim())
-      .filter(title => title && title.toLowerCase() !== "title");
+        const container = document.getElementById('covers');
 
-    // 2. Fetch image files from the repo
-    const imagesResp = await fetch(imagesApiUrl);
-    if (!imagesResp.ok) throw new Error(`Failed to fetch images: ${imagesResp.status}`);
-    const files = await imagesResp.json();
-
-    const imageMap = {};
-    files.forEach(file => {
-      if(file.type === "file" && file.download_url.endsWith(".jpg")) {
-        const name = sanitizeFilename(file.name.replace(".jpg",""));
-        imageMap[name] = file.download_url;
+        covers.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `<img src="${item.path}" alt="${item.title}"><br>${item.title}`;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error('Failed to load covers:', err);
+        const container = document.getElementById('covers');
+        container.innerHTML = '<p style="color:red;">Failed to load covers.</p>';
       }
-    });
+    }
 
-    // 3. Display images in sheet order
-    const container = document.getElementById("covers");
-    titles.forEach(title => {
-      const sanitized = sanitizeFilename(title);
-      if(imageMap[sanitized]) {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `<img src="${imageMap[sanitized]}" alt="${title}"><br>${title}`;
-        container.appendChild(div);
-      } else {
-        console.warn(`No image found for: ${title}`);
-      }
-    });
-
-  } catch(err) {
-    console.error(err);
-    document.getElementById("covers").innerText = "Error loading covers: " + err.message;
-  }
-}
-
-loadCovers();
-</script>
+    loadCovers();
+  </script>
+</body>
+</html>
