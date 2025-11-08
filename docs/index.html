@@ -8,6 +8,7 @@
     .grid { display: flex; flex-wrap: wrap; gap: 20px; }
     .card { text-align: center; width: 180px; cursor: pointer; }
     .card img { width: 180px; height: 240px; object-fit: cover; }
+    .pending { border: 4px solid red; }
     #downloadBtn { margin-bottom: 20px; padding: 10px 15px; font-size: 16px; cursor: pointer; }
   </style>
 </head>
@@ -20,51 +21,59 @@
   </div>
 
   <script>
+    // Load the covers
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
         const covers = await resp.json();
         const container = document.getElementById('covers');
 
+        // Load existing replacement requests from localStorage
+        const existingRequests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
+
         covers.forEach(item => {
           const div = document.createElement('div');
           div.className = 'card';
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
+
+          // Mark if there is already a replacement request
+          if (existingRequests.some(req => req.title === item.title)) {
+            div.querySelector('img').classList.add('pending');
+          }
+
           container.appendChild(div);
 
-          div.addEventListener('click', async () => {
+          // Click to submit a replacement URL
+          div.addEventListener('click', () => {
             const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
             if (newUrl) {
               let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
 
-              // Check for duplicates and replace if exists
-              const index = requests.findIndex(r => r.title === item.title);
-              if (index >= 0) {
-                requests[index].newUrl = newUrl;
+              // Check if a request already exists for this title
+              const existingIndex = requests.findIndex(req => req.title === item.title);
+              if (existingIndex >= 0) {
+                requests[existingIndex].newUrl = newUrl; // Update existing
               } else {
-                requests.push({ title: item.title, newUrl });
+                requests.push({ title: item.title, newUrl }); // Add new
               }
 
               localStorage.setItem('replace_requests', JSON.stringify(requests));
-              alert('Replacement request saved. Click "Download Replacement Requests" to get JSON.');
+              div.querySelector('img').classList.add('pending'); // mark visually
+              alert('Replacement request saved! You can now download it.');
             }
           });
         });
       } catch (err) {
         console.error('Failed to load covers:', err);
-        const container = document.getElementById('covers');
-        container.innerHTML = '<p style="color:red;">Failed to load covers.</p>';
+        document.getElementById('covers').innerHTML =
+          '<p style="color:red;">Failed to load covers.</p>';
       }
     }
 
-    document.getElementById('downloadBtn').addEventListener('click', () => {
-      let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
-      if (requests.length === 0) {
-        alert('No replacement requests to download.');
-        return;
-      }
-
-      const blob = new Blob([JSON.stringify(requests, null, 2)], { type: 'application/json' });
+    // Download the JSON file
+    function downloadRequests() {
+      const requests = localStorage.getItem('replace_requests') || '[]';
+      const blob = new Blob([requests], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -73,12 +82,12 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    }
 
-      // Clear requests after download
-      localStorage.setItem('replace_requests', '[]');
-      alert('Replacement requests downloaded and reset.');
-    });
+    // Set up download button
+    document.getElementById('downloadBtn').addEventListener('click', downloadRequests);
 
+    // Initialize
     loadCovers();
   </script>
 </body>
