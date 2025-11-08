@@ -10,23 +10,48 @@
     .card img { width: 180px; height: 240px; object-fit: cover; }
     .pending { border: 4px solid red; }
     #downloadBtn { margin-bottom: 20px; padding: 10px 15px; font-size: 16px; cursor: pointer; }
+
+    /* Modal styles */
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 1000; 
+      left: 0; top: 0; width: 100%; height: 100%; 
+      overflow: auto; background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 300px; border-radius: 5px;
+      text-align: center;
+    }
+    .modal input { width: 100%; padding: 5px; margin-top: 10px; }
+    .modal button { margin-top: 10px; padding: 5px 10px; }
   </style>
 </head>
 <body>
   <h1>Manhwa Covers</h1>
-  <p>Click an image if it is wrong to submit a replacement URL. Title will be copied automatically.</p>
+  <p>Click an image to submit a replacement URL.</p>
   <button id="downloadBtn">Download Replacement Requests</button>
-  <div class="grid" id="covers">
-    <!-- Covers will be loaded here -->
+  <div class="grid" id="covers"></div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <p id="modalTitle"></p>
+      <input type="text" id="newUrlInput" placeholder="Enter new image URL">
+      <br>
+      <button id="okBtn">OK</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
   </div>
 
   <script>
+    let currentItem = null; // store clicked image info
+
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
         const covers = await resp.json();
         const container = document.getElementById('covers');
-
         const existingRequests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
 
         covers.forEach(item => {
@@ -34,36 +59,28 @@
           div.className = 'card';
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
 
+          const imgEl = div.querySelector('img');
           if (existingRequests.some(req => req.title === item.title)) {
-            div.querySelector('img').classList.add('pending');
+            imgEl.classList.add('pending');
           }
 
-          container.appendChild(div);
-
           div.addEventListener('click', async () => {
-            // Copy title to clipboard
+            // Copy "title cover" to clipboard
             try {
-              await navigator.clipboard.writeText(item.title);
-              console.log(`Title "${item.title}" copied to clipboard`);
-            } catch (err) {
-              console.error('Failed to copy title:', err);
+              await navigator.clipboard.writeText(`${item.title} cover`);
+            } catch(e) {
+              console.error("Clipboard failed:", e);
             }
 
-            // Prompt for new URL
-            const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
-            if (newUrl) {
-              let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
-              const existingIndex = requests.findIndex(req => req.title === item.title);
-              if (existingIndex >= 0) {
-                requests[existingIndex].newUrl = newUrl;
-              } else {
-                requests.push({ title: item.title, newUrl });
-              }
-              localStorage.setItem('replace_requests', JSON.stringify(requests));
-              div.querySelector('img').classList.add('pending');
-              alert('Replacement request saved! You can now download it.');
-            }
+            // Show modal
+            currentItem = item;
+            document.getElementById('modalTitle').textContent = `Replace image for "${item.title}"`;
+            document.getElementById('newUrlInput').value = '';
+            document.getElementById('modal').style.display = 'block';
+            document.getElementById('newUrlInput').focus();
           });
+
+          container.appendChild(div);
         });
       } catch (err) {
         console.error('Failed to load covers:', err);
@@ -72,6 +89,35 @@
       }
     }
 
+    // Modal buttons
+    document.getElementById('okBtn').addEventListener('click', () => {
+      const newUrl = document.getElementById('newUrlInput').value.trim();
+      if (newUrl && currentItem) {
+        let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
+        const existingIndex = requests.findIndex(req => req.title === currentItem.title);
+        if (existingIndex >= 0) {
+          requests[existingIndex].newUrl = newUrl;
+        } else {
+          requests.push({ title: currentItem.title, newUrl });
+        }
+        localStorage.setItem('replace_requests', JSON.stringify(requests));
+
+        // Mark image as pending
+        document.querySelectorAll('.card').forEach(div => {
+          const imgEl = div.querySelector('img');
+          if (imgEl.alt === currentItem.title) imgEl.classList.add('pending');
+        });
+      }
+      document.getElementById('modal').style.display = 'none';
+      currentItem = null;
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'none';
+      currentItem = null;
+    });
+
+    // Download JSON
     function downloadRequests() {
       const requests = localStorage.getItem('replace_requests') || '[]';
       const blob = new Blob([requests], { type: 'application/json' });
@@ -84,15 +130,12 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      // Clear all requests and remove red border
+      // Clear localStorage and pending class
       localStorage.removeItem('replace_requests');
-      document.querySelectorAll('.card img.pending').forEach(img => {
-        img.classList.remove('pending');
-      });
+      document.querySelectorAll('.card img.pending').forEach(img => img.classList.remove('pending'));
     }
 
     document.getElementById('downloadBtn').addEventListener('click', downloadRequests);
-
     loadCovers();
   </script>
 </body>
