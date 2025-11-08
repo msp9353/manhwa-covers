@@ -10,12 +10,12 @@ SHEET_ID = "125magt7y48FLQRzBUgz-H1FmxfaK6edvIKdOGFSBpY8"
 CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 IMAGES_DIR = "images"
 OUTPUT_JSON = "docs/covers.json"
-DELAY_SECONDS = 0.4  # wait between requests to avoid rate limiting
-MAX_RETRIES = 3      # retry failed requests this many times
+DELAY_SECONDS = 0.4
+MAX_RETRIES = 3
 
 # === SETUP ===
 os.makedirs(IMAGES_DIR, exist_ok=True)
-os.makedirs("docs", exist_ok=True)  # ensure docs folder exists
+os.makedirs("docs", exist_ok=True)
 
 def sanitize_filename(name):
     invalid = '<>:"/\\|?*'
@@ -57,7 +57,7 @@ def get_cover_url(title):
             print(f"❌ Attempt {attempt}: Exception for {title}: {e}")
             time.sleep(DELAY_SECONDS * attempt)
 
-    return None  # failed all retries
+    return None
 
 def download_image(title, image_url):
     filename = sanitize_filename(title) + ".jpg"
@@ -92,13 +92,14 @@ def main():
                 continue
             time.sleep(DELAY_SECONDS)
 
-        # Add to JSON list (URL-encoded path)
+        # Use raw GitHub URL for JSON
+        raw_url = f"https://raw.githubusercontent.com/msp9353/manhwa-covers/main/images/{quote(filename)}"
         covers_list.append({
             "title": title,
-            "path": f"images/{quote(filename)}"
+            "url": raw_url
         })
 
-    # Write JSON file
+    # Write JSON
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(covers_list, f, ensure_ascii=False, indent=2)
     print(f"✅ Written JSON to {OUTPUT_JSON}")
