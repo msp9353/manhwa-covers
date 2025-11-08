@@ -1,51 +1,43 @@
 import os
 import json
 import requests
+from urllib.parse import quote
 
 IMAGES_DIR = "images"
-COVERS_JSON = "docs/covers.json"
-REQUESTS_JSON = "docs/replace_requests.json"
+REQUESTS_FILE = "replace_requests.json"
 
-os.makedirs(IMAGES_DIR, exist_ok=True)
-os.makedirs("docs", exist_ok=True)
+def sanitize_filename(name):
+    invalid = '<>:"/\\|?*'
+    for ch in invalid:
+        name = name.replace(ch, '')
+    return name.strip()
 
-# Load existing covers
-with open(COVERS_JSON, "r", encoding="utf-8") as f:
-    covers = json.load(f)
+def main():
+    if not os.path.exists(REQUESTS_FILE):
+        print(f"{REQUESTS_FILE} not found.")
+        return
 
-# Load replacement requests
-if os.path.exists(REQUESTS_JSON):
-    with open(REQUESTS_JSON, "r", encoding="utf-8") as f:
+    with open(REQUESTS_FILE, "r", encoding="utf-8") as f:
         requests_list = json.load(f)
-else:
-    requests_list = []
 
-if not requests_list:
-    print("No replacement requests found.")
-    exit(0)
+    if not os.path.exists(IMAGES_DIR):
+        os.makedirs(IMAGES_DIR)
 
-for req in requests_list:
-    title = req["title"]
-    new_url = req["url"]
-    # Find the cover entry
-    for cover in covers:
-        if cover["title"] == title:
-            # Download new image
-            filename = os.path.basename(cover["url"])
-            local_path = os.path.join(IMAGES_DIR, filename)
-            try:
-                img_data = requests.get(new_url).content
-                with open(local_path, "wb") as f:
-                    f.write(img_data)
-                cover["url"] = new_url
-                print(f"Updated cover for {title}")
-            except Exception as e:
-                print(f"Failed to update {title}: {e}")
+    for req in requests_list:
+        title = req["title"]
+        url = req["newUrl"]
+        filename = sanitize_filename(title) + ".jpg"
+        filepath = os.path.join(IMAGES_DIR, filename)
+        try:
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            with open(filepath, "wb") as f:
+                f.write(resp.content)
+            print(f"✅ Replaced: {filename}")
+        except Exception as e:
+            print(f"❌ Failed to replace {filename}: {e}")
 
-# Save updated covers.json
-with open(COVERS_JSON, "w", encoding="utf-8") as f:
-    json.dump(covers, f, ensure_ascii=False, indent=2)
+    print("All replacement requests processed.")
 
-# Clear requests
-with open(REQUESTS_JSON, "w", encoding="utf-8") as f:
-    json.dump([], f)
+if __name__ == "__main__":
+    main()
