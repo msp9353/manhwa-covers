@@ -18,6 +18,34 @@
   </div>
 
   <script>
+    const REPO_OWNER = "msp9353";
+    const REPO_NAME = "manhwa-covers";
+    const WORKFLOW_ID = "replace_cover.yml"; // workflow filename
+    const GH_PAT = "<GH_PAT>"; // replace with your PAT
+
+    async function triggerReplaceWorkflow(title, newUrl) {
+      const response = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_ID}/dispatches`,
+        {
+          method: "POST",
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": `Bearer ${GH_PAT}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ref: "main",
+            inputs: { title, new_url: newUrl }
+          })
+        }
+      );
+      if (response.ok) {
+        alert(`Replacement workflow triggered for "${title}".`);
+      } else {
+        alert(`Failed to trigger workflow: ${response.status}`);
+      }
+    }
+
     async function loadCovers() {
       try {
         const resp = await fetch('covers.json');
@@ -30,23 +58,17 @@
           div.innerHTML = `<img src="${item.url}" alt="${item.title}"><br>${item.title}`;
           container.appendChild(div);
 
-          // Click event to request a replacement
           div.addEventListener('click', async () => {
             const newUrl = prompt(`Enter a new image URL for "${item.title}":`);
             if (newUrl) {
-              // Add the request to replace_requests.json
-              // We can't push to repo from browser, so we create/update localStorage as placeholder
-              let requests = JSON.parse(localStorage.getItem('replace_requests') || '[]');
-              requests.push({ title: item.title, newUrl });
-              localStorage.setItem('replace_requests', JSON.stringify(requests));
-              alert('Replacement request saved. Trigger the update workflow to apply it.');
+              triggerReplaceWorkflow(item.title, newUrl);
             }
           });
         });
       } catch (err) {
         console.error('Failed to load covers:', err);
-        const container = document.getElementById('covers');
-        container.innerHTML = '<p style="color:red;">Failed to load covers.</p>';
+        document.getElementById('covers').innerHTML =
+          '<p style="color:red;">Failed to load covers.</p>';
       }
     }
 
