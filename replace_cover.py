@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from urllib.parse import quote
+from urllib.parse import urlparse
 
 IMAGES_DIR = "images"
 REQUESTS_FILE = "replace_requests.json"
@@ -12,32 +12,30 @@ def sanitize_filename(name):
         name = name.replace(ch, '')
     return name.strip()
 
-def main():
-    if not os.path.exists(REQUESTS_FILE):
-        print(f"{REQUESTS_FILE} not found.")
-        return
+if not os.path.exists(REQUESTS_FILE):
+    print("No replace_requests.json found. Exiting.")
+    exit(0)
 
-    with open(REQUESTS_FILE, "r", encoding="utf-8") as f:
-        requests_list = json.load(f)
+with open(REQUESTS_FILE, "r", encoding="utf-8") as f:
+    requests_list = json.load(f)
 
-    if not os.path.exists(IMAGES_DIR):
-        os.makedirs(IMAGES_DIR)
+for req in requests_list:
+    title = req.get("title")
+    url = req.get("newUrl")
+    if not title or not url:
+        print(f"Skipping invalid request: {req}")
+        continue
 
-    for req in requests_list:
-        title = req["title"]
-        url = req["newUrl"]
-        filename = sanitize_filename(title) + ".jpg"
-        filepath = os.path.join(IMAGES_DIR, filename)
-        try:
-            resp = requests.get(url, timeout=15)
-            resp.raise_for_status()
-            with open(filepath, "wb") as f:
-                f.write(resp.content)
-            print(f"✅ Replaced: {filename}")
-        except Exception as e:
-            print(f"❌ Failed to replace {filename}: {e}")
+    filename = sanitize_filename(title) + ".jpg"
+    filepath = os.path.join(IMAGES_DIR, filename)
 
-    print("All replacement requests processed.")
+    try:
+        print(f"Downloading new image for '{title}'...")
+        img_data = requests.get(url, timeout=10).content
+        with open(filepath, "wb") as f:
+            f.write(img_data)
+        print(f"✅ Replaced image: {filename}")
+    except Exception as e:
+        print(f"❌ Failed to download {title}: {e}")
 
-if __name__ == "__main__":
-    main()
+print("All replacement requests processed.")
