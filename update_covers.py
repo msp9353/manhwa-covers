@@ -92,10 +92,10 @@ def main():
                 continue
             time.sleep(DELAY_SECONDS)
 
-        # Add to JSON list (relative path for GitHub Pages)
+        # Add to JSON list (URL-encoded path)
         covers_list.append({
             "title": title,
-            "path": f"images/{filename}"
+            "path": f"images/{quote(filename)}"
         })
 
     # Write JSON file
